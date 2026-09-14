@@ -20,7 +20,23 @@ the Cursor app already on your Mac.
 
 - macOS 14 or newer
 - Xcode Command Line Tools (`xcode-select --install`) or Xcode
-- Cursor installed and signed in
+- The **Cursor desktop app** installed on this Mac and signed in
+
+## What it needs to work
+
+This app has no login of its own. It borrows the session that the Cursor
+desktop app already keeps on your Mac, so:
+
+- **The Cursor desktop app must be installed and signed in here.** Being logged
+  in to cursor.com in a browser is not enough. There is no session on disk for
+  this app to read in that case.
+- **Cursor does not have to be running.** It reads Cursor's state database
+  whether Cursor is open or closed.
+- **Cursor owns the token.** It cannot refresh an expired session itself. If the
+  token has expired, open Cursor once so it renews, and the next refresh picks
+  the new one up.
+- **It only ever reads.** Nothing is written to Cursor's files, and the token is
+  never stored or sent anywhere except to cursor.com as a cookie.
 
 ## Getting started
 
@@ -62,9 +78,19 @@ Then remove it from Login Items in System Settings if it's still listed.
 
 ## Troubleshooting
 
-**Nothing appears / "not signed in".** The app reads the session token from
-the Cursor app's local state. Open Cursor, make sure you're signed in, then
-open the popover again to retry.
+**"Sign in to Cursor first" or "state not found".** The app reads the session
+from the Cursor desktop app's local state. Open the Cursor app and sign in
+there. A browser session on cursor.com does not create the local state this
+app needs.
+
+**"Cursor.app token is expired".** Open Cursor once so it renews its session,
+then hit Refresh.
+
+**"Could not open / read Cursor.app state database".** The message includes the
+SQLite result code and text. Cursor's database uses WAL journaling, and the app
+falls back through three ways of opening it, so this should survive Cursor
+being closed. If you still see it, the code in the message is the thing to
+look up.
 
 **Numbers look wrong or the app stopped working.** Cursor's dashboard API is
 undocumented and changes without notice. Run `make dump` to print the raw
@@ -83,6 +109,12 @@ model name. The popover footer says which rule was used. To fix it, run
   (`~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`) and
   sends it as the `WorkosCursorSessionToken` cookie. Read-only, re-read on every
   refresh, never written anywhere.
+- **Surviving a Cursor quit:** that database uses WAL journaling, and Cursor
+  deletes the `-shm` index file when it exits. A read-only SQLite connection
+  cannot recreate that file, so a plain read-only open fails once Cursor closes.
+  The reader tries read-only first, then `immutable=1`, which reads the
+  checkpointed database file directly without locking or creating anything, and
+  read-write only as a last resort.
 - **Data:** `GET /api/usage-summary` for plan percentages and billing cycle,
   `POST /api/dashboard/get-filtered-usage-events` for the per-model breakdown,
   aggregated on your Mac.
@@ -92,6 +124,7 @@ model name. The popover footer says which rule was used. To fix it, run
 | Command | What it does |
 | --- | --- |
 | `make run` | Debug build, runs in the foreground |
+| `swift test` | Runs the unit tests (auth, JWT parsing, WAL fallbacks) |
 | `make dump` | Prints raw API payloads to stdout and `~/Library/Logs/CursorUsage/` |
 | `make app` | Builds `CursorUsage.app` in the project folder |
 | `make screenshot` | Re-renders the README images in `docs/` from sample data |
