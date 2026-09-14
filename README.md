@@ -1,8 +1,10 @@
-# Cursor Usage — menu bar meter
+# Cursor Usage
 
-A tiny native macOS menu bar app that shows your Cursor included-usage for the
-current billing period, with the same per-model breakdown as
-`cursor.com/dashboard` → Usage:
+A small macOS menu bar app that shows how much of your Cursor plan you've used
+this billing period, with the same per-model breakdown as the Cursor dashboard.
+
+The menu bar shows a percentage (`41%`), turning orange at 70% and red at 90%.
+Click it for the details:
 
 ```
 Cursor Models                128.3M tokens   49.1%
@@ -14,59 +16,96 @@ Other Models                  41.3M tokens  100.0%
 On-demand / extra spend                      $12.40
 ```
 
-Menu bar shows `41%` (left, or used — toggle in the popover), coloured orange
-at 70% used and red at 90%.
+No dependencies, no accounts, nothing stored. It reuses the login session of
+the Cursor app already on your Mac.
 
-Zero dependencies. Swift 5.9, macOS 14+. ~15 MB idle.
+## Requirements
 
-## Run
+- macOS 14 or newer
+- Xcode Command Line Tools (`xcode-select --install`) or Xcode
+- Cursor installed and signed in
+
+## Getting started
+
+Clone and install:
 
 ```bash
-make run        # debug build, runs in the foreground
-make install    # release .app → /Applications, launches it
+git clone https://github.com/jashuari/CursorUsage.git
+cd CursorUsage
+make install
 ```
 
-On its first launch from /Applications the app registers itself as a Login
-Item (System Settings → General → Login Items & Extensions), so it comes back
-after every reboot. Turn it off there or with the "Login item" switch in the
-popover — the two stay in sync.
+That builds a release `.app`, copies it to `/Applications`, and launches it.
+The app registers itself to start at login on first launch, so it will be back
+after a reboot. A percentage should appear in your menu bar within a few
+seconds.
+
+To try it without installing (quits when you press Ctrl-C):
+
+```bash
+make run
+```
+
+## Everyday use
+
+- **Click** the percentage to open the popover with the breakdown.
+- **Left / used toggle** in the popover switches what the menu bar number means.
+- **Login item switch** in the popover turns start-at-login on or off. You can
+  also do this in System Settings → General → Login Items & Extensions.
+- **Refresh** happens every 5 minutes, and when you open the popover if the data
+  is more than a minute old.
+
+## Uninstall
+
+```bash
+pkill -x CursorUsage; rm -rf /Applications/CursorUsage.app
+```
+
+Then remove it from Login Items in System Settings if it's still listed.
+
+## Troubleshooting
+
+**Nothing appears / "not signed in".** The app reads the session token from
+the Cursor app's local state. Open Cursor, make sure you're signed in, then
+open the popover again to retry.
+
+**Numbers look wrong or the app stopped working.** Cursor's dashboard API is
+undocumented and changes without notice. Run `make dump` to print the raw
+responses and see what changed.
+
+**The Cursor Models vs Other Models split doesn't match the dashboard.** The
+dashboard uses a per-event field to decide this that isn't obvious from the
+API. The app tries a few likely field names and otherwise guesses from the
+model name. The popover footer says which rule was used. To fix it, run
+`make dump`, compare one `auto-smart` event from each group, and adjust
+`LaneClassifier` in `Sources/CursorUsage/UsageReport.swift`.
 
 ## How it works
 
-- **Auth**: reads `cursorAuth/accessToken` from Cursor.app's own state DB
-  (`~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`),
-  derives the user id from the JWT `sub`, and sends it as the
-  `WorkosCursorSessionToken` cookie. Read-only; re-read on every refresh, so it
-  tracks whatever session Cursor.app currently holds. Nothing is stored.
-- **Data**: `GET /api/usage-summary` (plan %, lane %, billing cycle, on-demand
-  spend) and `POST /api/dashboard/get-filtered-usage-events` windowed to the
-  billing cycle, aggregated per model client-side.
-- **Refresh**: every 5 min, plus when you open the popover if data is >60 s old.
+- **Auth:** reads the access token from Cursor's state database
+  (`~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`) and
+  sends it as the `WorkosCursorSessionToken` cookie. Read-only, re-read on every
+  refresh, never written anywhere.
+- **Data:** `GET /api/usage-summary` for plan percentages and billing cycle,
+  `POST /api/dashboard/get-filtered-usage-events` for the per-model breakdown,
+  aggregated on your Mac.
 
-Both endpoints are undocumented and can change without notice. When they do,
-`make dump` prints the raw payloads so the decoder can be fixed quickly.
+## Development
 
-## Known gap: the Cursor-vs-Other lane split
-
-Cursor's dashboard puts `auto-smart` in *both* groups, so the split isn't by
-model name — it's some per-event field the dashboard uses. The app looks for a
-few plausible field names (`usageLane`, `lane`, `usageType`, …) and otherwise
-falls back to a name heuristic (composer/cursor-/auto → Cursor Models). The
-footer tells you which rule was applied. Run `make dump`, look at one
-`auto-smart` event from each group, and adjust `LaneClassifier` in
-`UsageReport.swift`.
-
-Per-model % is computed as the model's share of its lane's charged cents times
-the lane's `autoPercentUsed` / `apiPercentUsed` from usage-summary, which is
-what makes the child rows sum to the group row like the dashboard.
-
-## Files
+| Command | What it does |
+| --- | --- |
+| `make run` | Debug build, runs in the foreground |
+| `make dump` | Prints raw API payloads to stdout and `~/Library/Logs/CursorUsage/` |
+| `make app` | Builds `CursorUsage.app` in the project folder |
+| `make install` | `make app` + copy to `/Applications` + launch |
+| `make clean` | Removes build output |
 
 | File | Role |
 | --- | --- |
-| `CursorAuth.swift` | SQLite read of Cursor.app token → cookie |
-| `CursorAPI.swift` | HTTP client + Decodable models, pagination |
-| `UsageReport.swift` | Aggregation into lanes / per-model rows |
-| `UsageStore.swift` | Refresh timer, state for the UI |
+| `App.swift` | Entry point, menu bar item, popover, `--dump` mode |
+| `CursorAuth.swift` | Reads the token from Cursor's SQLite state DB |
+| `CursorAPI.swift` | HTTP client and response models |
+| `UsageReport.swift` | Groups events into lanes and per-model rows |
+| `UsageStore.swift` | Refresh timer and UI state |
 | `PopoverView.swift` | SwiftUI popover |
-| `App.swift` | `@main` entry, NSStatusItem + NSPopover glue, `--dump` CLI mode |
+| `LaunchAtLogin.swift` | Login item registration |
