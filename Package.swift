@@ -10,5 +10,11 @@ let package = Package(
             path: "Sources/CursorUsage",
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
+        .testTarget(
+            name: "CursorUsageTests",
+            dependencies: ["CursorUsage"],
+            path: "Tests/CursorUsageTests",
+            linkerSettings: [.linkedLibrary("sqlite3")]
+        ),
     ]
 )
