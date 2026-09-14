@@ -3,18 +3,15 @@
 A small macOS menu bar app that shows how much of your Cursor plan you've used
 this billing period, with the same per-model breakdown as the Cursor dashboard.
 
-The menu bar shows a percentage (`41%`), turning orange at 70% and red at 90%.
+The menu bar shows a percentage (`37%`), turning orange at 70% and red at 90%.
 Click it for the details:
 
-```
-Cursor Models                128.3M tokens   49.1%
-    composer-2.5-fast         83.2M tokens   29.7%
-    auto-smart                31.4M tokens   10.4%
-Other Models                  41.3M tokens  100.0%
-    auto-smart                36.9M tokens   82.7%
-    claude-opus-4-8-…          4.4M tokens   17.3%
-On-demand / extra spend                      $12.40
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/popover-dark.png">
+    <img src="docs/popover-light.png" alt="The Cursor Usage popover: percentage left, a usage bar, a per-model token table split into Cursor Models and Other Models, and on-demand spend." width="380">
+  </picture>
+</p>
 
 No dependencies, no accounts, nothing stored. It reuses the login session of
 the Cursor app already on your Mac.
@@ -97,6 +94,7 @@ model name. The popover footer says which rule was used. To fix it, run
 | `make run` | Debug build, runs in the foreground |
 | `make dump` | Prints raw API payloads to stdout and `~/Library/Logs/CursorUsage/` |
 | `make app` | Builds `CursorUsage.app` in the project folder |
+| `make screenshot` | Re-renders the README images in `docs/` from sample data |
 | `make install` | `make app` + copy to `/Applications` + launch |
 | `make clean` | Removes build output |
 
@@ -109,3 +107,4 @@ model name. The popover footer says which rule was used. To fix it, run
 | `UsageStore.swift` | Refresh timer and UI state |
 | `PopoverView.swift` | SwiftUI popover |
 | `LaunchAtLogin.swift` | Login item registration |
+| `ScreenshotMode.swift` | Renders the README images from sample data |

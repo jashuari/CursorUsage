@@ -10,6 +10,11 @@ struct CursorUsageMain {
             runDump()
             return
         }
+        // Hidden: render the popover to PNGs for the README, using sample data only.
+        if let i = CommandLine.arguments.firstIndex(of: "--screenshot") {
+            let dir = CommandLine.arguments.count > i + 1 ? CommandLine.arguments[i + 1] : "docs"
+            exit(ScreenshotMode.run(outputDirectory: dir))
+        }
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

@@ -35,6 +35,17 @@ final class UsageStore: ObservableObject {
         showPercentLeft = UserDefaults.standard.object(forKey: "showPercentLeft") as? Bool ?? true
     }
 
+    /// Previews / `--screenshot` only: a store pinned to a fixed report. It never
+    /// fetches, and it must not disturb the user's settings — `showPercentLeft` is
+    /// set as part of initialization (so its UserDefaults `didSet` doesn't run) and
+    /// `launchAtLogin` goes through `syncLoginItem`, which the `didSet` ignores, so
+    /// no login item is ever registered.
+    init(previewReport: UsageReport, showPercentLeft: Bool = true, launchAtLogin: Bool = true) {
+        self.showPercentLeft = showPercentLeft
+        syncLoginItem(launchAtLogin)
+        report = previewReport
+    }
+
     func start() {
         Task { await refresh() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in

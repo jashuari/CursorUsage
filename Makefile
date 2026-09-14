@@ -1,4 +1,4 @@
-.PHONY: run dump app install clean
+.PHONY: run dump screenshot app install clean
 
 # Debug build and run straight from the terminal (Ctrl-C to quit).
 run:
@@ -8,6 +8,11 @@ run:
 # and ~/Library/Logs/CursorUsage/. Use this to check the lane discriminator.
 dump:
 	swift run CursorUsage --dump
+
+# Render the popover to docs/popover-{light,dark}.png for the README. Uses the
+# built-in sample data, never your real Cursor account.
+screenshot:
+	swift run CursorUsage --screenshot docs
 
 # Release build wrapped in CursorUsage.app
 app:

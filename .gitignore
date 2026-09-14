@@ -3,3 +3,6 @@
 .DS_Store
 .swiftpm/
 *.xcodeproj
+
+# README screenshots (make screenshot) are committed on purpose.
+!docs/*.png
